@@ -12,8 +12,6 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
     expose:
       - 9091
     volumes:
@@ -47,11 +45,8 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
     expose:
       - 6379
-    command: redis-server --requirepass "${AUTHELIA_REDIS_PASSWORD}"
     volumes:
       - authelia_redis:/data
     environment:
@@ -59,7 +54,7 @@ services:
     networks:
       - authelia-backend
     healthcheck:
-      test: ["CMD-SHELL", 'redis-cli -a "$$AUTHELIA_REDIS_PASSWORD" ping | grep -q PONG']
+      test: ["CMD-SHELL", 'redis-cli ping | grep -q PONG']
       interval: 10s
       timeout: 5s
       retries: 5

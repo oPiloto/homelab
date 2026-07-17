@@ -9,7 +9,7 @@ log:
   level: info
   format: json
   file_path: "/var/log/authelia/authelia.log"
-  keep_stdout: true 
+  keep_stdout: true
 
 theme: dark
 
@@ -58,17 +58,19 @@ access_control:
 #                           Session                           #
 ###############################################################
 session:
-  name: "authelia_session"
-  expiration: "1h"
-  inactivity: "5m"
-  remember_me: "1M"
+  name: authelia_session
+  expiration: 1h
+  inactivity: 5m
+  remember_me: 1M
+
   cookies:
     - domain: '{{ mustEnv "DOMAIN" }}'
       authelia_url: 'https://{{ mustEnv "AUTH_DOMAIN" }}'
-      same_site: "lax"
-      inactivity: "5m"
-      expiration: "1h"
-      remember_me: "7d"
+      same_site: lax
+      inactivity: 5m
+      expiration: 1h
+      remember_me: 7d
+
   redis:
     host: authelia-redis
     port: 6379
@@ -89,6 +91,13 @@ storage:
     path: /config/db.sqlite3
 
 ###############################################################
+#                 Identity Validation / Reset                 #
+###############################################################
+identity_validation:
+  reset_password:
+    jwt_secret: '{{ mustEnv "AUTHELIA_JWT_SECRET" }}'
+
+###############################################################
 #                     Notification System                     #
 ###############################################################
 notifier:
@@ -106,6 +115,9 @@ webauthn:
   disable: true
   display_name: '{{ mustEnv "DOMAIN" }} Authentication'
   attestation_conveyance_preference: indirect
-  user_verification: preferred
+
+  selection_criteria:
+    user_verification: preferred
+
   timeout: 60s
 ...
