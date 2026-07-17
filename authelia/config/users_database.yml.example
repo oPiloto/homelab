@@ -1,0 +1,19 @@
+---
+###############################################################
+#                         Users Database                      #
+###############################################################
+
+## Gere o hash da senha (não gere senhas fracas; use --random para o
+## Authelia sugerir uma senha forte e já devolver o hash correspondente):
+## docker run --rm authelia/authelia:latest authelia crypto hash generate argon2 --password 'sua-senha-aqui'
+
+users:
+  opiloto:
+    disabled: false
+    displayname: "Pedro Piloto"
+    password: "$argon2id$SUBSTITUA_PELO_HASH_GERADO"
+    email: email@example.com
+    groups:
+      - admins
+      - dev
+...

@@ -1,0 +1,73 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: vault
+    hostname: vault
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    expose:
+      - 80
+    environment:
+      - TZ=America/Sao_Paulo
+      - DOMAIN=https://${VAULT_DOMAIN}
+      - SIGNUPS_ALLOWED=false
+      - SIGNUPS_VERIFY=true
+      - INVITATIONS_ALLOWED=true
+      - LOG_FILE=/data/logs/access.log
+      - WEBSOCKET_ENABLED=true
+      - ROCKET_ENV=prod
+      - ROCKET_WORKERS=10
+      - EXTENDED_LOGGING=true
+    env_file:
+      - .env
+    volumes:
+      - vault_data:/data
+      - vault_logs:/data/logs
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      ## Main
+      - "traefik.http.routers.vaultwarden.rule=Host(`${VAULT_DOMAIN}`)"
+      - "traefik.http.routers.vaultwarden.entrypoints=websecure"
+      - "traefik.http.routers.vaultwarden.service=vaultwarden"
+      - "traefik.http.services.vaultwarden.loadbalancer.server.port=80"
+      ## Block access to the /admin dashboard from public ip ranges
+      - "traefik.http.routers.vaultwarden-admin.rule=Host(`${VAULT_DOMAIN}`) && Path(`/admin`)"
+      - "traefik.http.routers.vaultwarden-admin.service=vaultwarden"
+      - "traefik.http.services.vaultwarden-admin.loadbalancer.server.port=80"
+      - "traefik.http.routers.vaultwarden-admin.middlewares=local-ipwhitelist@file"
+      ## Block access to the /api/version endpoint from public ip ranges
+      - "traefik.http.routers.vaultwarden-admin-api.rule=Host(`${VAULT_DOMAIN}`) && Path(`/api/version`)"
+      - "traefik.http.routers.vaultwarden-admin-api.service=vaultwarden"
+      - "traefik.http.services.vaultwarden-admin-api.loadbalancer.server.port=80"
+      - "traefik.http.routers.vaultwarden-admin-api.middlewares=local-ipwhitelist@file"
+    healthcheck:
+      test: ["CMD", "curl", "http://localhost:80/alive"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    logging: *default-logging
+
+volumes:
+  vault_data:
+  vault_logs:
+    name: vault_logs
+
+networks:
+  traefik:
+    external: true

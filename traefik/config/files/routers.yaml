@@ -1,0 +1,16 @@
+---
+# Traefik Dynamic Router Configuration
+# Define routers to route traffic to services
+# Uncomment and customize the examples below
+
+# Definido como label no compose
+# http:
+#   routers:
+#     api:
+#       rule: "Host(`traefik.example.com`)"
+#       service: api@internal
+#       priority: 10
+#       entryPoints:
+#         - websecure
+#       middlewares:
+#         - local-ipwhitelist@file

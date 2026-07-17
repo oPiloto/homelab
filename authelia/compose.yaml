@@ -1,0 +1,77 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  authelia:
+    image: authelia/authelia:latest
+    container_name: authelia
+    hostname: authelia
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    expose:
+      - 9091
+    volumes:
+      - ./config:/config
+      - authelia_logs:/var/log/authelia
+    env_file:
+      - ./.env
+    environment:
+      - TZ=America/Sao_Paulo
+      - X_AUTHELIA_CONFIG_FILTERS=template
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.authelia.rule=Host(`${AUTH_DOMAIN}`)"
+      - "traefik.http.routers.authelia.entrypoints=websecure"
+      - "traefik.http.routers.authelia.middlewares=local-ipwhitelist@file"
+    networks:
+      - traefik
+      - authelia-backend
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9091/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    logging: *default-logging
+
+  authelia-redis:
+    image: redis:7-alpine
+    container_name: authelia-redis
+    hostname: authelia-redis
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    expose:
+      - 6379
+    command: redis-server --requirepass "${AUTHELIA_REDIS_PASSWORD}"
+    volumes:
+      - authelia_redis:/data
+    environment:
+      - TZ=America/Sao_Paulo
+    networks:
+      - authelia-backend
+    healthcheck:
+      test: ["CMD-SHELL", 'redis-cli -a "$$AUTHELIA_REDIS_PASSWORD" ping | grep -q PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging: *default-logging
+
+volumes:
+  authelia_logs:
+  authelia_redis:
+
+networks:
+  traefik:
+    external: true
+  authelia-backend:
+    internal: true

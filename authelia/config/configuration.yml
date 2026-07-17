@@ -1,0 +1,111 @@
+---
+###############################################################
+#                   Authelia configuration                    #
+###############################################################
+server:
+  address: 'tcp://:9091/'
+
+log:
+  level: info
+  format: json
+  file_path: "/var/log/authelia/authelia.log"
+  keep_stdout: true 
+
+theme: dark
+
+###############################################################
+#                    Authentication Backend                   #
+###############################################################
+authentication_backend:
+  password_reset:
+    disable: true
+  file:
+    path: /config/users_database.yml
+    password:
+      algorithm: argon2id
+      iterations: 4
+      salt_length: 32
+      parallelism: 8
+      memory: 256
+
+###############################################################
+#                     Password Requirements                   #
+###############################################################
+password_policy:
+  standard:
+    enabled: true
+    min_length: 12
+    max_length: 128
+    require_uppercase: true
+    require_lowercase: true
+    require_number: true
+    require_special: true
+
+###############################################################
+#                     Access Control Rules                    #
+###############################################################
+access_control:
+  default_policy: deny
+  rules:
+    - domain: '{{ mustEnv "AUTH_DOMAIN" }}'
+      policy: bypass
+    - domain:
+      - '{{ mustEnv "DOMAIN" }}'
+      - '*.{{ mustEnv "DOMAIN" }}'
+      policy: two_factor
+
+###############################################################
+#                           Session                           #
+###############################################################
+session:
+  name: "authelia_session"
+  expiration: "1h"
+  inactivity: "5m"
+  remember_me: "1M"
+  cookies:
+    - domain: '{{ mustEnv "DOMAIN" }}'
+      authelia_url: 'https://{{ mustEnv "AUTH_DOMAIN" }}'
+      same_site: "lax"
+      inactivity: "5m"
+      expiration: "1h"
+      remember_me: "7d"
+  redis:
+    host: authelia-redis
+    port: 6379
+
+###############################################################
+#                       Security Rules                        #
+###############################################################
+regulation:
+  max_retries: 3
+  find_time: 120s
+  ban_time: 30m
+
+###############################################################
+#                           Storage                           #
+###############################################################
+storage:
+  local:
+    path: /config/db.sqlite3
+
+###############################################################
+#                     Notification System                     #
+###############################################################
+notifier:
+  filesystem:
+    filename: /config/notifications.txt
+
+###############################################################
+#                        Two-Factor Auth                      #
+###############################################################
+totp:
+  issuer: '{{ mustEnv "DOMAIN" }}'
+  algorithm: sha1
+
+webauthn:
+  disable: true
+  display_name: '{{ mustEnv "DOMAIN" }} Authentication'
+  attestation_conveyance_preference: indirect
+  user_verification: preferred
+  timeout: 60s
+...

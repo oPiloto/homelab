@@ -1,0 +1,156 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  nextcloud-db:
+    image: mariadb:10.11.15
+    container_name: nextcloud-db
+    hostname: nextcloud-db
+    command: --transaction-isolation=READ-COMMITTED --innodb_read_only_compressed=OFF
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - nextcloud_db:/var/lib/mysql
+    environment:
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_INITDB_SKIP_TZINFO=1
+      - MARIADB_AUTO_UPGRADE=1
+      - PUID=${MYSQL_PUID}
+      - PGID=${MYSQL_PGID}
+      - TZ=${TZ}
+    networks:
+      - nextcloud-backend
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    logging: *default-logging
+
+  nextcloud-redis:
+    image: redis:7-alpine
+    container_name: nextcloud-redis
+    hostname: nextcloud-redis
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - nextcloud_redis:/data
+    command: redis-server --requirepass "${REDIS_PASSWORD}"
+    environment:
+      - TZ=${TZ}
+    networks:
+      - nextcloud-backend
+    healthcheck:
+      test: ["CMD-SHELL", 'redis-cli -a "$$REDIS_PASSWORD" ping | grep -q PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging: *default-logging
+
+  nextcloud-app:
+    image: nextcloud:33-apache
+    container_name: nextcloud-app
+    hostname: nextcloud-app
+    restart: unless-stopped
+    expose:
+      - "80"
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      nextcloud-db:
+        condition: service_healthy
+      nextcloud-redis:
+        condition: service_healthy
+    environment:
+      - TZ=${TZ}
+      - MYSQL_HOST=${MYSQL_HOST}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - NEXTCLOUD_ADMIN_USER=${NC_ADMIN_USER}
+      - NEXTCLOUD_ADMIN_PASSWORD=${NC_ADMIN_USER_PASSWORD}
+      - NEXTCLOUD_TRUSTED_DOMAINS=${DOMAIN}
+      - TRUSTED_PROXIES=${NC_TRUSTEDPROXIES}
+      - OVERWRITEPROTOCOL=${NC_OVERWRITEPROTOCOL}
+      - OVERWRITECLIURL=https://${DOMAIN}
+      - OVERWRITEHOST=${DOMAIN}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_HOST_PASSWORD=${REDIS_PASSWORD}
+    volumes:
+      - nextcloud_data:/var/www/html
+      - nextcloud_logs:/var/log/nextcloud
+    networks:
+      - traefik
+      - nextcloud-backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.nextcloud.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.nextcloud.entrypoints=websecure"
+      - "traefik.http.routers.nextcloud.middlewares=limit-nextcloud,nextcloud-dav"
+      - "traefik.http.services.nextcloud.loadbalancer.server.port=80"
+      # Nextcloud DAV fix
+      - "traefik.http.middlewares.nextcloud-dav.replacepathregex.regex=^/.well-known/ca(l|rd)dav"
+      - "traefik.http.middlewares.nextcloud-dav.replacepathregex.replacement=/remote.php/dav/"
+      # Buffers (upload) (2GB)
+      - "traefik.http.middlewares.limit-nextcloud.buffering.maxRequestBodyBytes=2147483648"
+      - "traefik.http.middlewares.limit-nextcloud.buffering.maxResponseBodyBytes=2147483648"
+      - "traefik.http.middlewares.limit-nextcloud.buffering.memRequestBodyBytes=2147483648"
+      - "traefik.http.middlewares.limit-nextcloud.buffering.memResponseBodyBytes=2147483648"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost/status.php"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    logging: *default-logging
+
+  nextcloud-cron:
+    image: nextcloud:33-apache
+    container_name: nextcloud-cron
+    hostname: nextcloud-cron
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    entrypoint: /cron.sh
+    depends_on:
+      nextcloud-app:
+        condition: service_healthy
+    environment:
+      - TZ=${TZ}
+      - MYSQL_HOST=${MYSQL_HOST}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_HOST_PASSWORD=${REDIS_PASSWORD}
+    volumes:
+      - nextcloud_data:/var/www/html
+    networks:
+      - nextcloud-backend
+    logging: *default-logging
+
+volumes:
+  nextcloud_data:
+  nextcloud_redis:
+  nextcloud_db:
+  nextcloud_logs:
+    name: nextcloud_logs
+
+networks:
+  traefik:
+    external: true
+  nextcloud-backend:
+    internal: true

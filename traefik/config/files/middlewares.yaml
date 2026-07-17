@@ -1,0 +1,98 @@
+---
+# Traefik Dynamic Middleware Configuration
+# This file is watched by Traefik and changes are applied automatically
+
+http:
+  middlewares:
+    security-headers:
+      headers:
+        frameDeny: true
+        browserXssFilter: true
+        contentTypeNosniff: true
+
+        customResponseHeaders:
+          Server: ""
+          X-Powered-By: ""
+
+        sslProxyHeaders:
+          X-Forwarded-Proto: "https"
+
+        hostsProxyHeaders:
+          - "X-Forwarded-Host"
+
+        referrerPolicy: "strict-origin-when-cross-origin"
+
+        # HSTS
+        forceSTSHeader: true
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+
+    geoblock:
+      plugin:
+        geoblock:
+          silentStartUp: false
+          allowLocalRequests: true
+          logLocalRequests: false
+          logAllowedRequests: false
+          logApiRequests: false
+          api: "https://get.geojs.io/v1/ip/country/{ip}"
+          apiTimeoutMs: 500
+          cacheSize: 25
+          forceMonthlyUpdate: true
+          allowUnknownCountries: false
+          unknownCountryApiResponse: "nil"
+          countries:
+            - BR
+
+    crowdsec:
+      plugin:
+        bouncer:
+          enabled: true
+          crowdsecMode: stream
+          updateIntervalSeconds: 60
+          crowdsecLapiHost: crowdsec:8080
+          crowdsecLapiKeyFile: /run/secrets/traefik/crowdsec_lapi_key
+          crowdsecAppsecEnabled: true
+          crowdsecAppsecHost: crowdsec:7422
+          crowdsecAppsecFailureBlock: true
+          crowdsecAppsecUnreachableBlock: true
+          forwardedHeadersTrustedIPs:
+            - 172.16.0.0/12
+          clientTrustedIPs:
+            - 10.0.0.0/8
+            - 172.16.0.0/12
+            - 192.168.0.0/16
+
+    rate-limit:
+      rateLimit:
+        average: 50
+        period: 1s
+        burst: 100
+
+    authelia:
+      forwardAuth:
+        address: 'http://authelia:9091/api/authz/forward-auth'
+        trustForwardHeader: true
+        authResponseHeaders:
+          - 'Remote-User'
+          - 'Remote-Groups'
+          - 'Remote-Email'
+          - 'Remote-Name'
+
+    authelia-basic:
+      forwardAuth:
+        address: 'http://authelia:9091/api/verify?auth=basic'
+        trustForwardHeader: true
+        authResponseHeaders:
+          - 'Remote-User'
+          - 'Remote-Groups'
+          - 'Remote-Email'
+          - 'Remote-Name'
+
+    local-ipwhitelist:
+      ipAllowList:
+        sourceRange:
+          - "127.0.0.1/32"
+          - "192.168.0.0/16"
+          - "172.16.0.0/12"

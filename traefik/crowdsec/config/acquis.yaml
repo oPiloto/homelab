@@ -1,0 +1,16 @@
+filenames:
+  - /var/log/traefik/*
+labels:
+  type: traefik
+
+---
+filenames:
+  - /var/log/nextcloud/*.log
+labels:
+  type: Nextcloud
+
+---
+filenames:
+ - /var/log/vaultwarden/*
+labels:
+  type: Vaultwarden
