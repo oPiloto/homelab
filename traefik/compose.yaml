@@ -119,9 +119,6 @@ services:
       - ./.env
     environment:
       - TZ=America/Sao_Paulo
-      - TRAEFIK_CERTIFICATESRESOLVERS_LE_ACME_EMAIL=${EMAIL}
-      - TRAEFIK_ENTRYPOINTS_WEBSECURE_HTTP_TLS_DOMAINS_0_MAIN=${DOMAIN}
-      - TRAEFIK_ENTRYPOINTS_WEBSECURE_HTTP_TLS_DOMAINS_0_SANS_0=*.${DOMAIN}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.api.rule=Host(`${TRAEFIK_DOMAIN}`)"

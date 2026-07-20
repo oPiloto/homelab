@@ -8,6 +8,8 @@ traefik/certs/*
 traefik/secrets/*
 !traefik/secrets/*.example
 
+traefik/config/traefik.yaml
+
 authelia/config/users_database.yml
 authelia/config/db.sqlite3
 authelia/config/notifications.txt

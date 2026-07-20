@@ -44,12 +44,11 @@ entryPoints:
       advertisedPort: 443
     http:
       tls:
-        certResolver: le
-        # Definidos como environment no compose
-        # domains:
-        #   - main: example.com
-        #     sans:
-        #       - "*.example.com"
+       certResolver: le
+       domains:
+         - main: example.com
+           sans:
+             - "*.example.com"
       middlewares:
         - security-headers@file
         - geoblock@file
@@ -87,8 +86,7 @@ providers:
 certificatesResolvers:
   le:
     acme:
-      # Definido como environment no compose
-      # email: email@example.com
+      email: email@example.com
       storage: /var/traefik/certs/acme.json
       dnsChallenge:
         provider: cloudflare
