@@ -1,0 +1,38 @@
+services:
+  iris:
+    # Username: _SYSTEM
+    # Password: SYS
+    # Password: f43877cce8c37e29c8
+    image: containers.intersystems.com/intersystems/iris-community:latest-em
+    container_name: iris
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    # ports:
+    #   - "1972:1972" # SuperServer
+    #   - "52773:52773" # Portal de gerenciamento / Web
+    networks:
+      - iris
+
+  webgateway:
+    build:
+      context: .
+      dockerfile: webgateway/Dockerfile
+    image: webgateway:2024.1
+    container_name: webgateway
+    restart: unless-stopped
+    networks:
+      - traefik
+      - iris
+    volumes:
+      - ./config/CSP.ini:/opt/webgateway/bin/CSP.ini
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.webgateway.rule=Host(`iris.onwire.com.br`)"
+      - "traefik.http.routers.webgateway.entrypoints=websecure"
+      # - "traefik.http.routers.webgateway.middlewares=local-ipwhitelist@file"
+
+networks:
+  traefik:
+    external: true
+  iris:
