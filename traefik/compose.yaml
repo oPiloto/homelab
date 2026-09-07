@@ -113,7 +113,7 @@ services:
       - ./config/:/etc/traefik/:ro
       - ./certs/:/var/traefik/certs/:rw
       - ./secrets/:/run/secrets/traefik:ro
-      - traefik_plugins:/plugins-storage:rw
+      - ./plugins-local:/plugins-local:ro
       - traefik_logs:/logs
     env_file:
       - ./.env
@@ -137,7 +137,6 @@ services:
     logging: *default-logging
 
 volumes:
-  traefik_plugins:
   traefik_logs:
   crowdsec_db:
   vault_logs:
