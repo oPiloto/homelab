@@ -8,6 +8,7 @@ Minha stack self-hosted.
 | `authelia/`  | SSO / MFA (forward-auth)                 | `auth.example.com`    |
 | `nextcloud/` | Nextcloud (app + cron + MariaDB + Redis) | `cloud.example.com`   |
 | `vault/`     | Vaultwarden (Bitwarden self-hosted)      | `vault.example.com`   |
+| `gitea/`     | Gitea (Git)                              | `gitea.example.com`   |
 
 Cada pasta é um stack Compose independente (`compose.yaml` + `.env` próprios),
 mas todos se conectam à mesma rede Docker externa `traefik` para que o
@@ -38,16 +39,23 @@ cp authelia/config/users_database.yml.example authelia/config/users_database.yml
 touch traefik/certs/acme.json
 chmod 600 traefik/certs/acme.json
 
-# 4) Subir vault e nextcloud primeiro (criam os volumes externos de log)
+# 4) Fazer o download dos plugins localmente
+mkdir -p ./traefik/plugins-local/src/github.com/maxlerebourg
+mkdir -p ./traefik/plugins-local/src/github.com/PascalMinder
+
+git clone --branch v0.3.8 --depth 1 https://github.com/PascalMinder/geoblock.git ./traefik/plugins-local/src/github.com/PascalMinder/geoblock
+git clone --branch v1.7.1 --depth 1 https://github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin.git ./traefik/plugins-local/src/github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin
+
+# 5) Subir vault e nextcloud primeiro (criam os volumes externos de log)
 # ou: `docker volume create vault_logs && docker volume create nextcloud_logs`
 # ou: remover configuração de traefik/crowdsec/config/acquis.yaml
 cd vault && docker compose up -d && cd ..
 cd nextcloud && docker compose up -d && cd ..
 
-# 5) Subir authelia
+# 6) Subir authelia
 cd authelia && docker compose up -d && cd ..
 
-# 6) Gerar a chave do bouncer do CrowdSec e configurar o Traefik
+# 7) Gerar a chave do bouncer do CrowdSec e configurar o Traefik
 cd traefik
 docker compose up -d socket-proxy crowdsec   # sobe só as dependências do CrowdSec primeiro
 docker exec crowdsec cscli bouncers add traefik-bouncer
@@ -55,7 +63,7 @@ docker exec crowdsec cscli bouncers add traefik-bouncer
 #   - traefik/.env            -> CROWDSEC_BOUNCER_KEY=<chave>
 #   - traefik/secrets/crowdsec_lapi_key  (crie a partir do .example, cole só a chave)
 
-# 7) Subir o Traefik completo
+# 8) Subir o Traefik completo
 docker compose up -d
 ```
 

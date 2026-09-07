@@ -14,3 +14,9 @@ filenames:
  - /var/log/vaultwarden/*
 labels:
   type: Vaultwarden
+
+---
+filenames:
+  - /var/log/gitea/*.log
+labels:
+  type: gitea

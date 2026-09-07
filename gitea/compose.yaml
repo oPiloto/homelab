@@ -1,0 +1,114 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  gitea-db:
+    image: postgres:16-alpine
+    container_name: gitea-db
+    hostname: gitea-db
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - gitea_db_data:/var/lib/postgresql/data
+    env_file:
+      - ./.env
+    environment:
+      - TZ=America/Sao_Paulo
+      - POSTGRES_DB=${GITEA_DB_NAME}
+      - POSTGRES_USER=${GITEA_DB_USER}
+      - POSTGRES_PASSWORD=${GITEA_DB_PASSWORD}
+    networks:
+      - gitea-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${GITEA_DB_USER} -d ${GITEA_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging: *default-logging
+
+  gitea:
+    image: gitea/gitea:1.27.2
+    container_name: gitea
+    hostname: gitea
+    restart: unless-stopped
+    depends_on:
+      gitea-db:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      - ./.env
+    environment:
+      - TZ=America/Sao_Paulo
+      - USER_UID=1000
+      - USER_GID=1000
+      - GITEA__database__DB_TYPE=postgres
+      - GITEA__database__HOST=gitea-db:5432
+      - GITEA__database__NAME=${GITEA_DB_NAME}
+      - GITEA__database__USER=${GITEA_DB_USER}
+      - GITEA__database__PASSWD=${GITEA_DB_PASSWORD}
+      - GITEA__server__DOMAIN=${GITEA_DOMAIN}
+      - GITEA__server__ROOT_URL=https://${GITEA_DOMAIN}/
+      - GITEA__server__SSH_DOMAIN=${GITEA_DOMAIN}
+      - GITEA__server__SSH_PORT=2222
+      - GITEA__log__MODE=file
+      - GITEA__log__LEVEL=Info
+      - GITEA__log__ROOT_PATH=/data/gitea/log
+      # --- hardening ---
+      - GITEA__security__INSTALL_LOCK=true
+      - GITEA__security__SECRET_KEY=${GITEA_SECRET_KEY}
+      - GITEA__security__INTERNAL_TOKEN=${GITEA_INTERNAL_TOKEN}
+      - GITEA__security__REVERSE_PROXY_LIMIT=1
+      - GITEA__security__REVERSE_PROXY_TRUSTED_PROXIES=${TRAEFIK_NETWORK_SUBNET}
+      - GITEA__security__PASSWORD_COMPLEXITY=lower,upper,digit,spec
+      - GITEA__security__MIN_PASSWORD_LENGTH=12
+      - GITEA__security__LOGIN_REMEMBER_DAYS=3
+      - GITEA__security__ALLOWED_HOST_LIST=external
+      - GITEA__service__DISABLE_REGISTRATION=true
+      - GITEA__service__REQUIRE_SIGNIN_VIEW=true
+      - GITEA__session__COOKIE_SECURE=true
+      - GITEA__session__SAME_SITE=strict
+      - GITEA__migrations__ALLOW_LOCALNETWORKS=false
+      - GITEA__api__ENABLE_SWAGGER=false
+      - GITEA__other__SHOW_FOOTER_VERSION=false
+      - GITEA__openid__ENABLE_OPENID_SIGNIN=false
+    volumes:
+      - gitea_data:/data
+      - gitea_logs:/data/gitea/log
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "2222:22"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gitea.rule=Host(`${GITEA_DOMAIN}`)"
+      - "traefik.http.routers.gitea.entrypoints=websecure"
+      - "traefik.http.services.gitea.loadbalancer.server.port=3000"
+    networks:
+      - traefik
+      - gitea-internal
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging: *default-logging
+
+volumes:
+  gitea_data:
+  gitea_db_data:
+  # docker volume create gitea_logs
+  gitea_logs:
+    external: true
+
+networks:
+  traefik:
+    external: true
+  gitea-internal:
+    internal: true

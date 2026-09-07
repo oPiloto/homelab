@@ -76,9 +76,10 @@ services:
       - traefik_logs:/var/log/traefik:ro
       - nextcloud_logs:/var/log/nextcloud:ro
       - vault_logs:/var/log/vaultwarden:ro
+      - gitea_logs:/var/log/gitea:ro
     environment:
       - TZ=America/Sao_Paulo
-      - COLLECTIONS=crowdsecurity/traefik crowdsecurity/http-cve crowdsecurity/whitelist-good-actors crowdsecurity/appsec-virtual-patching crowdsecurity/appsec-generic-rules crowdsecurity/nextcloud Dominic-Wagner/vaultwarden
+      - COLLECTIONS=crowdsecurity/traefik crowdsecurity/http-cve crowdsecurity/whitelist-good-actors crowdsecurity/appsec-virtual-patching crowdsecurity/appsec-generic-rules LePresidente/gitea crowdsecurity/nextcloud Dominic-Wagner/vaultwarden
       - BOUNCER_KEY_TRAEFIK=${CROWDSEC_BOUNCER_KEY}
     networks:
       - traefik
@@ -142,6 +143,8 @@ volumes:
   vault_logs:
     external: true
   nextcloud_logs:
+    external: true
+  gitea_logs:
     external: true
 
 networks:
